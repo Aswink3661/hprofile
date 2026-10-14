@@ -1,5 +1,5 @@
 name: Hproffile Actions
-on: workflow_dispatch
+on: [push, workflow_dispatch]
 env:
   AWS_REGION: ap-south-2
   ECR_REPOSITORY: vprofile-cicd
@@ -56,6 +56,8 @@ jobs:
 
   BUILD_AND_PUBLISH:
     needs: Testing
+    # Only main gets built and deployed to ECS (DEPLOY is skipped along with this job)
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04
     steps:
       - name: Code Checkout
