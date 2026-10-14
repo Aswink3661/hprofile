@@ -1,5 +1,8 @@
 name: Hproffile Actions
 on: workflow_dispatch
+env:
+  AWS_REGION: ap-south-2
+  ECR_REPOSITORY: vprofile-cicd
 jobs:
   Testing:
     runs-on: ubuntu-26.04
@@ -46,6 +49,42 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_URL }}
+
+  BUILD_AND_PUBLISH:
+    needs: Testing
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Code Checkout
+        uses: actions/checkout@v7
+
+      - name: Update application.properties with RDS details
+        env:
+          RDS_USER: ${{ secrets.RDS_USER }}
+          RDS_PASS: ${{ secrets.RDS_PASS }}
+          RDS_ENDPOINT: ${{ secrets.RDS_ENDPOINT }}
+        run: |
+          for s in RDS_USER RDS_PASS RDS_ENDPOINT; do
+            [ -n "${!s}" ] || { echo "::error::Secret $s is not set"; exit 1; }
+          done
+
+          # Escape characters sed treats specially (\ & |) so values are written as-is
+          esc() { printf '%s' "$1" | sed 's/[\\&|]/\\&/g'; }
+
+          f=src/main/resources/application.properties
+          sed -i "s|^jdbc.username=.*|jdbc.username=$(esc "$RDS_USER")|" "$f"
+          sed -i "s|^jdbc.password=.*|jdbc.password=$(esc "$RDS_PASS")|" "$f"
+          sed -i "/^jdbc.url=/s|//db01:|//$(esc "$RDS_ENDPOINT"):|" "$f"
+
+      - name: Build & push image to ECR
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          REGISTRY: ${{ secrets.REGISTRY }}
+          IMAGE_TAG: ${{ github.run_number }}
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$REGISTRY"
+          docker build -t "$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" -t "$REGISTRY/$ECR_REPOSITORY:latest" .
+          docker push --all-tags "$REGISTRY/$ECR_REPOSITORY"
 
         
         

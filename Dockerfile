@@ -1,11 +1,10 @@
-FROM openjdk:11 AS BUILD_IMAGE
-RUN apt update && apt install maven -y
+FROM maven:3.9-eclipse-temurin-11 AS BUILD_IMAGE
 COPY ./ vprofile-project
 RUN cd vprofile-project &&  mvn install 
 
 FROM tomcat:9-jre11
 LABEL "Project"="Vprofile"
-LABEL "Author"="Imran"
+LABEL "Author"="Aswin Kommineni"
 RUN rm -rf /usr/local/tomcat/webapps/*
 COPY --from=BUILD_IMAGE vprofile-project/target/vprofile-v2.war /usr/local/tomcat/webapps/ROOT.war
 
