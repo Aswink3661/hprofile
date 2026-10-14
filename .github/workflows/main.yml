@@ -2,7 +2,7 @@ name: Hproffile Actions
 on: workflow_dispatch
 jobs:
   Testing:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Code Checkout
         uses: actions/checkout@v7
